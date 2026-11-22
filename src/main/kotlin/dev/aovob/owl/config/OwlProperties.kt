@@ -15,4 +15,6 @@ data class OwlProperties(
 	val sessionKey: String,
 	val cookieSecure: Boolean = true,
 	val sessionDays: Long = 30,
+	/** Playlists and cover images (a volume shared by the blue and green containers). */
+	val dataDir: String = "/data",
 )

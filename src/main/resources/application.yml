@@ -31,3 +31,4 @@ owl:
   session-key: ${OWL_SESSION_KEY:}
   cookie-secure: ${OWL_COOKIE_SECURE:true}
   session-days: 30
+  data-dir: ${OWL_DATA_DIR:/data}
