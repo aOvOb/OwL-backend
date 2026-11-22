@@ -24,6 +24,8 @@ data class PlaylistItem(
 	val album: String? = null,
 	val duration: Int? = null,
 	val thumbnail: String? = null,
+	/** When it was added to the playlist (epoch ms); 0 for songs added before this was recorded. */
+	val addedAt: Long = 0,
 )
 
 data class OwlPlaylist(

@@ -44,7 +44,7 @@ data class AddItems(@field:Size(max = 300) val items: List<@Valid ItemInput> = e
 data class PlaylistSummary(val id: String, val name: String, val count: Int, val cover: Boolean, val updatedAt: Long, val thumbnails: List<String>)
 data class ItemView(
 	val index: Int, val videoId: String?, val songId: String?, val title: String, val artist: String,
-	val album: String?, val duration: Int?, val thumbnail: String?, val downloading: Boolean,
+	val album: String?, val duration: Int?, val thumbnail: String?, val downloading: Boolean, val addedAt: Long,
 )
 data class PlaylistView(val id: String, val name: String, val cover: Boolean, val updatedAt: Long, val items: List<ItemView>)
 
@@ -155,8 +155,9 @@ class PlaylistController(
 	private fun merge(existing: List<PlaylistItem>, add: List<ItemInput>): List<PlaylistItem> {
 		val seen = existing.map(::identity).toMutableSet()
 		val out = existing.toMutableList()
+		val now = System.currentTimeMillis()
 		for (i in add) {
-			val item = PlaylistItem(i.videoId, i.songId, i.title.trim(), i.artist.trim(), i.album, i.duration, i.thumbnail?.takeIf { it.startsWith("https://") })
+			val item = PlaylistItem(i.videoId, i.songId, i.title.trim(), i.artist.trim(), i.album, i.duration, i.thumbnail?.takeIf { it.startsWith("https://") }, now)
 			if (seen.add(identity(item)) && out.size < MAX_ITEMS) out.add(item)
 		}
 		return out
@@ -186,7 +187,7 @@ class PlaylistController(
 		return PlaylistView(pl.id, pl.name, pl.cover, pl.updatedAt, pl.items.mapIndexed { i, it ->
 			val songId = if (lookupOk) found[i] ?: it.songId?.takeIf { _ -> it.videoId == null } else it.songId
 			ItemView(i, it.videoId, songId, it.title, it.artist, it.album, it.duration, it.thumbnail,
-				downloading = songId == null && it.videoId in active)
+				downloading = songId == null && it.videoId in active, addedAt = it.addedAt)
 		})
 	}
 
