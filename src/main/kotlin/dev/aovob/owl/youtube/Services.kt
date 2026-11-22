@@ -72,6 +72,12 @@ class ChartsClient(props: OwlProperties) {
 		return rest.get().uri(uri).retrieve().body<List<Map<String, Any?>>>().orEmpty()
 	}
 
+	/** Lyrics saved next to the audio file: {synced, lines: [{t: seconds or null, text}]}, or null. */
+	fun lyrics(songId: String): Map<String, Any?>? {
+		val uri = UriComponentsBuilder.fromUriString("$base/lyrics").queryParam("id", songId).encode().build().toUri()
+		return rest.get().uri(uri).retrieve().body<Map<String, Any?>>()
+	}
+
 	/** Library song id for each (title, artist), or null when not downloaded yet. */
 	fun lookup(items: List<Pair<String, String>>): List<String?> {
 		if (items.isEmpty()) return emptyList()

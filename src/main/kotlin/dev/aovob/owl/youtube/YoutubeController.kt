@@ -4,6 +4,7 @@ import jakarta.validation.Valid
 import jakarta.validation.constraints.Pattern
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -66,6 +67,13 @@ class YoutubeController(private val charts: ChartsClient, private val yubal: Yub
 
 	@GetMapping("/yt/jobs")
 	fun jobs(): Map<String, Any?> = yubal.jobs()
+
+	/** Synced (Apple Music style) or plain lyrics for a library song. */
+	@GetMapping("/lyrics/{songId}")
+	fun lyrics(@PathVariable songId: String): Map<String, Any?> {
+		if (!Regex("^tr-\\d+$").matches(songId)) throw ResponseStatusException(HttpStatus.BAD_REQUEST, "잘못된 곡 번호예요")
+		return charts.lyrics(songId) ?: mapOf("synced" to false, "lines" to emptyList<Any>())
+	}
 
 	private fun markDownloading(items: List<Map<String, Any?>>): List<Map<String, Any?>> {
 		val active = yubal.activeVideoIds()
