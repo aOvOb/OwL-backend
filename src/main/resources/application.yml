@@ -1,0 +1,33 @@
+spring:
+  application:
+    name: owl
+  threads:
+    virtual:
+      enabled: true
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+server:
+  port: 8080
+  shutdown: graceful
+  # Caddy sets X-Forwarded-For; use it for the client IP (login rate limit).
+  forward-headers-strategy: framework
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+# All secrets come from environment variables on the server (/srv/owl/backend.env).
+owl:
+  gonic-url: ${OWL_GONIC_URL:http://gonic:80}
+  yubal-url: ${OWL_YUBAL_URL:http://yubal:8000/api}
+  search-url: ${OWL_SEARCH_URL:http://charts:8090}
+  session-key: ${OWL_SESSION_KEY:}
+  cookie-secure: ${OWL_COOKIE_SECURE:true}
+  session-days: 30
