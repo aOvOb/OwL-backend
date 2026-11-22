@@ -82,6 +82,10 @@ class YoutubeController(private val charts: ChartsClient, private val yubal: Yub
 	@PostMapping("/downloads/drop")
 	fun drop(@Valid @RequestBody body: VideoIds): Map<String, Any?> = charts.drop(body.videoIds.orEmpty())
 
+	/** Recently downloaded songs (suggestions when adding to a playlist). */
+	@GetMapping("/songs/recent")
+	fun recent(@RequestParam(defaultValue = "50") size: Int): List<Map<String, Any?>> = charts.recent(size.coerceIn(1, 200))
+
 	/** Synced (Apple Music style) or plain lyrics for a library song. */
 	@GetMapping("/lyrics/{songId}")
 	fun lyrics(@PathVariable songId: String): Map<String, Any?> {

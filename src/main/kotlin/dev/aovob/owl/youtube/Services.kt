@@ -74,6 +74,10 @@ class ChartsClient(props: OwlProperties) {
 		return rest.get().uri(uri).retrieve().body<List<Map<String, Any?>>>().orEmpty()
 	}
 
+	/** Songs most recently added to the library, newest first (Song-shaped: id, title, artist, album, coverArt, duration). */
+	fun recent(n: Int): List<Map<String, Any?>> =
+		rest.get().uri("$base/recent?n=$n").retrieve().body<List<Map<String, Any?>>>().orEmpty()
+
 	// ---- download queue (rate limited, retried, with a failed list) ----
 
 	/** Queues songs [{videoId, title, artist, album, thumbnail}]. source: manual | playlist | chart | album. */
