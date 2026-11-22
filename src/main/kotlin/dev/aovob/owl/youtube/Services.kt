@@ -65,12 +65,32 @@ class ChartsClient(props: OwlProperties) {
 		return rest.get().uri(uri).retrieve().body<List<Map<String, Any?>>>().orEmpty()
 	}
 
-	fun charts(key: String?): List<Map<String, Any?>> {
+	/** Charts; top=N returns the first N songs of each (home screen) with whole-chart counts. */
+	fun charts(key: String?, top: Int? = null): List<Map<String, Any?>> {
 		val uri = UriComponentsBuilder.fromUriString("$base/charts").apply {
 			if (!key.isNullOrBlank()) queryParam("key", key)
+			if (top != null) queryParam("top", top)
 		}.encode().build().toUri()
 		return rest.get().uri(uri).retrieve().body<List<Map<String, Any?>>>().orEmpty()
 	}
+
+	// ---- download queue (rate limited, retried, with a failed list) ----
+
+	/** Queues songs [{videoId, title, artist, album, thumbnail}]. source: manual | playlist | chart | album. */
+	fun want(items: List<Map<String, Any?>>, source: String): Int =
+		post("/want", mapOf("items" to items, "source" to source))["queued"] as? Int ?: 0
+
+	/** Queues every song of a YouTube Music song/album/playlist link. */
+	fun wantUrl(url: String, source: String = "manual"): Map<String, Any?> = post("/want-url", mapOf("url" to url, "source" to source))
+
+	fun downloads(): Map<String, Any?> = rest.get().uri("$base/downloads").retrieve().body<Map<String, Any?>>().orEmpty()
+
+	fun retry(videoIds: List<String>?): Map<String, Any?> = post("/downloads/retry", mapOf("videoIds" to videoIds))
+
+	fun drop(videoIds: List<String>): Map<String, Any?> = post("/downloads/drop", mapOf("videoIds" to videoIds))
+
+	private fun post(path: String, body: Any): Map<String, Any?> =
+		rest.post().uri("$base$path").contentType(MediaType.APPLICATION_JSON).body(body).retrieve().body<Map<String, Any?>>().orEmpty()
 
 	/** Lyrics saved next to the audio file: {synced, lines: [{t: seconds or null, text}]}, or null. */
 	fun lyrics(songId: String): Map<String, Any?>? {

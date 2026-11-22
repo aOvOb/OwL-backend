@@ -2,6 +2,7 @@ package dev.aovob.owl.youtube
 
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Pattern
+import jakarta.validation.constraints.Size
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -12,20 +13,32 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.server.ResponseStatusException
 
+/** A song to download. title/artist let the queue recognize it in the library once downloaded. */
+data class SongToGet(
+	@field:Pattern(regexp = "^[A-Za-z0-9_-]{11}$", message = "videoId 형식이 아닙니다") val videoId: String? = null,
+	@field:Size(max = 300) val title: String? = null,
+	@field:Size(max = 300) val artist: String? = null,
+	@field:Size(max = 300) val album: String? = null,
+	@field:Size(max = 600) val thumbnail: String? = null,
+)
+
 data class DownloadRequest(
-	@field:Pattern(regexp = "^[A-Za-z0-9_-]{11}$", message = "videoId 형식이 아닙니다")
-	val videoId: String? = null,
+	@field:Pattern(regexp = "^[A-Za-z0-9_-]{11}$", message = "videoId 형식이 아닙니다") val videoId: String? = null,
 	@field:Pattern(regexp = "^https://(music\\.youtube\\.com|(www\\.)?youtube\\.com|youtu\\.be)/\\S+$", message = "유튜브 주소만 받을 수 있습니다")
 	val url: String? = null,
+	@field:Size(max = 300) val title: String? = null,
+	@field:Size(max = 300) val artist: String? = null,
+	@field:Size(max = 300) val album: String? = null,
+	@field:Size(max = 600) val thumbnail: String? = null,
 )
 
-data class BulkDownloadRequest(
-	val videoIds: List<@Pattern(regexp = "^[A-Za-z0-9_-]{11}$") String> = emptyList(),
-)
+data class BulkDownloadRequest(@field:Size(max = 500) val items: List<@Valid SongToGet> = emptyList())
+data class VideoIds(val videoIds: List<@Pattern(regexp = "^[A-Za-z0-9_-]{11}$") String>? = null)
 
 /**
- * YouTube Music search and charts (from the chart service, which knows which songs are already in the
- * library) and download requests (Yubal). Entries get `downloading: true` while Yubal is working on them.
+ * YouTube Music search, charts and lyrics (from the chart service, which knows what is in the library),
+ * and downloads. Every download goes through the chart service's queue: one song at a time, rate
+ * limited, retried later on failure, and listed as failed (the DLQ) when it cannot be downloaded.
  */
 @RestController
 @RequestMapping("/api")
@@ -33,40 +46,41 @@ class YoutubeController(private val charts: ChartsClient, private val yubal: Yub
 
 	@GetMapping("/yt/search")
 	fun search(@RequestParam q: String): List<Map<String, Any?>> =
-		if (q.isBlank()) emptyList() else markDownloading(charts.search(q))
+		if (q.isBlank()) emptyList() else charts.search(q).map(::withDownloading)
 
 	@GetMapping("/charts")
-	fun charts(@RequestParam(required = false) key: String?): List<Map<String, Any?>> {
-		val active = yubal.activeVideoIds()
-		return charts.charts(key).map { chart ->
+	fun charts(@RequestParam(required = false) key: String?, @RequestParam(required = false) top: Int?): List<Map<String, Any?>> =
+		charts.charts(key, top?.coerceIn(1, 100)).map { chart ->
 			@Suppress("UNCHECKED_CAST")
 			val entries = (chart["entries"] as? List<Map<String, Any?>>).orEmpty()
-			chart + ("entries" to entries.map { it + ("downloading" to (it["songId"] == null && it["videoId"] in active)) })
+			chart + ("entries" to entries.map(::withDownloading))
 		}
-	}
 
 	@PostMapping("/yt/download")
-	fun download(@Valid @RequestBody body: DownloadRequest): Map<String, Any?> {
-		val url = body.url ?: body.videoId?.let { "https://music.youtube.com/watch?v=$it" }
-			?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "videoId 또는 url이 필요합니다")
-		return yubal.submit(url) ?: throw ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "다운로드 대기열이 가득 찼습니다. 잠시 뒤에 다시 시도하세요.")
+	fun download(@Valid @RequestBody body: DownloadRequest): Map<String, Any?> = when {
+		body.url != null -> charts.wantUrl(body.url)
+		body.videoId != null -> mapOf("queued" to charts.want(listOf(body.toSong()), "manual"))
+		else -> throw ResponseStatusException(HttpStatus.BAD_REQUEST, "videoId 또는 url이 필요합니다")
 	}
 
-	/** "Download all missing". Stops when Yubal's queue is full and reports how many went in. */
 	@PostMapping("/yt/download/bulk")
-	fun downloadBulk(@Valid @RequestBody body: BulkDownloadRequest): Map<String, Any?> {
-		val active = yubal.activeVideoIds()
-		var queued = 0
-		for (id in body.videoIds.distinct().take(100)) {
-			if (id in active) continue
-			yubal.submitVideo(id) ?: break
-			queued++
-		}
-		return mapOf("queued" to queued)
-	}
+	fun downloadBulk(@Valid @RequestBody body: BulkDownloadRequest): Map<String, Any?> =
+		mapOf("queued" to charts.want(body.items.filter { it.videoId != null }.map { it.toMap() }, "manual"))
 
 	@GetMapping("/yt/jobs")
 	fun jobs(): Map<String, Any?> = yubal.jobs()
+
+	/** Download queue: paused state, in progress, waiting, retrying later, and failed (DLQ). */
+	@GetMapping("/downloads")
+	fun downloads(): Map<String, Any?> = charts.downloads()
+
+	/** Retry failed songs (no ids = all of them). */
+	@PostMapping("/downloads/retry")
+	fun retry(@Valid @RequestBody body: VideoIds): Map<String, Any?> = charts.retry(body.videoIds)
+
+	/** Remove songs from the queue / failed list. */
+	@PostMapping("/downloads/drop")
+	fun drop(@Valid @RequestBody body: VideoIds): Map<String, Any?> = charts.drop(body.videoIds.orEmpty())
 
 	/** Synced (Apple Music style) or plain lyrics for a library song. */
 	@GetMapping("/lyrics/{songId}")
@@ -75,8 +89,10 @@ class YoutubeController(private val charts: ChartsClient, private val yubal: Yub
 		return charts.lyrics(songId) ?: mapOf("synced" to false, "lines" to emptyList<Any>())
 	}
 
-	private fun markDownloading(items: List<Map<String, Any?>>): List<Map<String, Any?>> {
-		val active = yubal.activeVideoIds()
-		return items.map { it + ("downloading" to (it["songId"] == null && it["videoId"] in active)) }
-	}
+	/** The queue's state for a song ("dl") as the app's simple flag. */
+	private fun withDownloading(e: Map<String, Any?>): Map<String, Any?> =
+		e + ("downloading" to (e["songId"] == null && e["dl"] in setOf("queued", "sent", "retrying")))
+
+	private fun DownloadRequest.toSong() = mapOf("videoId" to videoId, "title" to title, "artist" to artist, "album" to album, "thumbnail" to thumbnail)
+	private fun SongToGet.toMap() = mapOf("videoId" to videoId, "title" to title, "artist" to artist, "album" to album, "thumbnail" to thumbnail)
 }
