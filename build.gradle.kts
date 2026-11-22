@@ -45,6 +45,11 @@ tasks.withType<Test> {
 	useJUnitPlatform()
 }
 
+// Version in the app (GET /api/version) comes from here.
+springBoot {
+	buildInfo()
+}
+
 // One runnable jar with a fixed name, used by the Dockerfile.
 tasks.bootJar {
 	archiveFileName = "owl.jar"

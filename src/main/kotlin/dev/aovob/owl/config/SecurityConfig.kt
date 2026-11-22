@@ -29,7 +29,7 @@ class SecurityConfig {
 			.requestCache { it.disable() }
 			.sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
 			.authorizeHttpRequests {
-				it.requestMatchers("/api/auth/login", "/api/auth/logout", "/actuator/health/**", "/actuator/health").permitAll()
+				it.requestMatchers("/api/auth/login", "/api/auth/logout", "/api/version", "/actuator/health/**", "/actuator/health").permitAll()
 				it.anyRequest().authenticated()
 			}
 			.exceptionHandling { it.authenticationEntryPoint { _, response, _ -> response.status = 401 } }
