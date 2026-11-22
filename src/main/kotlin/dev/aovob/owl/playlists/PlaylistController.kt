@@ -2,7 +2,6 @@ package dev.aovob.owl.playlists
 
 import dev.aovob.owl.auth.OwlUser
 import dev.aovob.owl.youtube.ChartsClient
-import dev.aovob.owl.youtube.YubalClient
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
@@ -58,7 +57,6 @@ data class PlaylistView(val id: String, val name: String, val cover: Boolean, va
 class PlaylistController(
 	private val store: PlaylistStore,
 	private val charts: ChartsClient,
-	private val yubal: YubalClient,
 ) {
 	@GetMapping
 	fun list(@AuthenticationPrincipal user: OwlUser): List<PlaylistSummary> =
@@ -166,21 +164,25 @@ class PlaylistController(
 
 	private fun identity(i: PlaylistItem) = i.videoId ?: i.songId ?: "${i.title}|${i.artist}"
 
-	/** Songs added before being downloaded: queue them now. */
+	/** Songs added before being downloaded go into the download queue (playlist songs go before chart/album songs). */
 	private fun startDownloads(items: List<PlaylistItem>) {
 		val missing = items.filter { it.videoId != null && it.songId == null }
 		if (missing.isEmpty()) return
-		val have = charts.lookup(missing.map { it.title to it.artist })
-		val active = yubal.activeVideoIds()
-		missing.forEachIndexed { i, item ->
-			if (have.getOrNull(i) == null && item.videoId !in active) yubal.submitVideo(item.videoId!!)
-		}
+		charts.want(missing.map { mapOf("videoId" to it.videoId, "title" to it.title, "artist" to it.artist, "album" to it.album, "thumbnail" to it.thumbnail) }, "playlist")
 	}
+
+	/** Video ids the download queue is still working on (waiting, downloading or retrying later). */
+	@Suppress("UNCHECKED_CAST")
+	private fun pendingVideoIds(): Set<String> = runCatching {
+		val d = charts.downloads()
+		listOf("active", "queued", "retrying").flatMap { (d[it] as? List<Map<String, Any?>>).orEmpty() }
+			.mapNotNull { it["videoId"] as? String }.toSet()
+	}.getOrDefault(emptySet())
 
 	private fun view(pl: OwlPlaylist): PlaylistView {
 		val found = charts.lookup(pl.items.map { it.title to it.artist })
 		val lookupOk = found.size == pl.items.size
-		val active = if (pl.items.any { it.videoId != null }) yubal.activeVideoIds() else emptySet()
+		val active = if (pl.items.any { it.videoId != null }) pendingVideoIds() else emptySet()
 		return PlaylistView(pl.id, pl.name, pl.cover, pl.updatedAt, pl.items.mapIndexed { i, it ->
 			val songId = if (lookupOk) found[i] ?: it.songId?.takeIf { _ -> it.videoId == null } else it.songId
 			ItemView(i, it.videoId, songId, it.title, it.artist, it.album, it.duration, it.thumbnail,
