@@ -38,9 +38,9 @@ data class ItemInput(
 	@field:Size(max = 600) val thumbnail: String? = null,
 )
 
-data class CreatePlaylist(@field:NotBlank @field:Size(max = 100) val name: String = "", @field:Valid val items: List<ItemInput> = emptyList())
+data class CreatePlaylist(@field:NotBlank @field:Size(max = 100) val name: String = "", @field:Size(max = 300) val items: List<@Valid ItemInput> = emptyList())
 data class RenamePlaylist(@field:NotBlank @field:Size(max = 100) val name: String = "")
-data class AddItems(@field:Valid @field:Size(max = 300) val items: List<ItemInput> = emptyList())
+data class AddItems(@field:Size(max = 300) val items: List<@Valid ItemInput> = emptyList())
 
 data class PlaylistSummary(val id: String, val name: String, val count: Int, val cover: Boolean, val updatedAt: Long, val thumbnails: List<String>)
 data class ItemView(
