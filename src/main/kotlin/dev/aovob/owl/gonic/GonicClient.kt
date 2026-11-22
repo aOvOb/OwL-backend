@@ -2,14 +2,13 @@ package dev.aovob.owl.gonic
 
 import dev.aovob.owl.auth.OwlUser
 import dev.aovob.owl.config.OwlProperties
+import dev.aovob.owl.youtube.internalRestClient
 import org.springframework.stereotype.Component
-import org.springframework.web.client.RestClient
 import org.springframework.web.client.body
 import org.springframework.web.util.UriComponentsBuilder
 import java.net.URI
 import java.security.MessageDigest
 import java.security.SecureRandom
-import java.time.Duration
 
 /** Error returned by Gonic. Codes 40/41 mean wrong credentials, 70 means not found. */
 class GonicException(val code: Int, message: String) : RuntimeException(message)
@@ -18,9 +17,7 @@ class GonicException(val code: Int, message: String) : RuntimeException(message)
 @Component
 class GonicClient(props: OwlProperties) {
 	private val base = props.gonicUrl.trimEnd('/')
-	private val rest = RestClient.builder()
-		.requestFactory(org.springframework.http.client.JdkClientHttpRequestFactory().apply { setReadTimeout(Duration.ofSeconds(30)) })
-		.build()
+	private val rest = internalRestClient()
 	private val random = SecureRandom()
 
 	fun call(user: OwlUser, method: String, params: Map<String, Any?> = emptyMap()): SubsonicResponse {

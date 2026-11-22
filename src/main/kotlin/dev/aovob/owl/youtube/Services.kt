@@ -2,17 +2,30 @@ package dev.aovob.owl.youtube
 
 import dev.aovob.owl.config.OwlProperties
 import org.springframework.http.MediaType
+import org.springframework.http.client.JdkClientHttpRequestFactory
 import org.springframework.stereotype.Component
+import java.net.http.HttpClient
+import java.time.Duration
 import org.springframework.web.client.HttpClientErrorException
 import org.springframework.web.client.RestClient
 import org.springframework.web.client.body
 import org.springframework.web.util.UriComponentsBuilder
 
+/**
+ * RestClient for internal services, pinned to HTTP/1.1. The JDK client otherwise tries an h2c upgrade,
+ * and uvicorn (Yubal) then drops the POST body (422 "body: Field required").
+ */
+fun internalRestClient(): RestClient = RestClient.builder()
+	.requestFactory(JdkClientHttpRequestFactory(HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).connectTimeout(Duration.ofSeconds(10)).build()).apply {
+		setReadTimeout(Duration.ofSeconds(30))
+	})
+	.build()
+
 /** Yubal (downloader) API. */
 @Component
 class YubalClient(props: OwlProperties) {
 	private val base = props.yubalUrl.trimEnd('/')
-	private val rest = RestClient.create()
+	private val rest = internalRestClient()
 
 	/** Queues a download. Returns null when Yubal's queue is full. */
 	fun submit(url: String): Map<String, Any?>? = try {
@@ -45,7 +58,7 @@ class YubalClient(props: OwlProperties) {
 @Component
 class ChartsClient(props: OwlProperties) {
 	private val base = props.searchUrl.trimEnd('/')
-	private val rest = RestClient.create()
+	private val rest = internalRestClient()
 
 	fun search(q: String): List<Map<String, Any?>> {
 		val uri = UriComponentsBuilder.fromUriString("$base/search").queryParam("q", q.take(200)).encode().build().toUri()
