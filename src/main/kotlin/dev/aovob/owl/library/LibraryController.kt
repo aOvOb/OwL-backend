@@ -71,6 +71,11 @@ class LibraryController(private val gonic: GonicClient) {
 	fun random(@AuthenticationPrincipal user: OwlUser, @RequestParam(defaultValue = "50") size: Int): List<Song> =
 		gonic.call(user, "getRandomSongs", mapOf("size" to size.coerceIn(1, 200))).randomSongs?.song.orEmpty()
 
+	/** One song's details (the app uses it to rebuild its list of songs saved on the device). */
+	@GetMapping("/songs/{id}")
+	fun song(@AuthenticationPrincipal user: OwlUser, @PathVariable id: String): Song? =
+		gonic.call(user, "getSong", mapOf("id" to id)).song
+
 	private companion object {
 		val ALBUM_LIST_TYPES = setOf("newest", "recent", "frequent", "random", "alphabeticalByName", "alphabeticalByArtist", "starred")
 

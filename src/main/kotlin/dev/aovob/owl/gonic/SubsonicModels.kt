@@ -21,6 +21,7 @@ data class SubsonicResponse(
 	val artist: Artist? = null,
 	val searchResult3: SearchResult? = null,
 	val randomSongs: SongList? = null,
+	val song: Song? = null,
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
