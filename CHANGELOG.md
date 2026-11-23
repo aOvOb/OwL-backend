@@ -2,6 +2,9 @@
 
 버전은 [Semantic Versioning](https://semver.org/lang/ko/)을 따릅니다. 1.0 전까지는 기능 추가에 MINOR, 수정에 PATCH를 올립니다.
 
+## 0.9.0 (2026-11-24)
+- 곡 하나 조회 API(`/api/songs/{id}`): 앱이 기기에 남은 파일로 오프라인 저장 목록을 다시 만들 때 사용
+
 ## 0.8.0 (2026-11-23)
 - 버전 API(`/api/version`): 앱에서 서버 버전과 배포 커밋 확인
 - 배포가 성공하면 GitHub에 버전 태그와 릴리스를 자동으로 만듦
