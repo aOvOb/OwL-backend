@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
+import org.springframework.web.client.HttpClientErrorException
 import org.springframework.web.client.RestClientException
 import org.springframework.web.server.ResponseStatusException
 
@@ -24,6 +25,14 @@ class ErrorHandler {
 		}
 		if (status == HttpStatus.BAD_GATEWAY) log.warn("Gonic error {}: {}", e.code, e.message)
 		return ResponseEntity.status(status).body(ApiError(e.message ?: "Gonic error"))
+	}
+
+	/** An internal service refused the request (4xx): pass its reason on instead of "connection failed". */
+	@ExceptionHandler(HttpClientErrorException::class)
+	fun upstreamRefused(e: HttpClientErrorException): ResponseEntity<ApiError> {
+		val reason = runCatching { e.getResponseBodyAs(Map::class.java)?.get("error") as? String }.getOrNull()
+		log.warn("Upstream refused: {} {}", e.statusCode, reason ?: e.message)
+		return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiError(reason ?: "요청을 처리하지 못했습니다"))
 	}
 
 	@ExceptionHandler(RestClientException::class)
