@@ -93,6 +93,18 @@ class ChartsClient(props: OwlProperties) {
 
 	fun drop(videoIds: List<String>): Map<String, Any?> = post("/downloads/drop", mapOf("videoIds" to videoIds))
 
+	// ---- song management (admins only; the caller checks) ----
+
+	fun adminSongs(q: String, offset: Int): Map<String, Any?> {
+		val uri = UriComponentsBuilder.fromUriString("$base/admin/songs").queryParam("q", q.take(200)).queryParam("offset", offset).encode().build().toUri()
+		return rest.get().uri(uri).retrieve().body<Map<String, Any?>>().orEmpty()
+	}
+
+	fun adminEdit(id: String, title: String?, artist: String?, album: String?): Map<String, Any?> =
+		post("/admin/songs/edit", mapOf("id" to id, "title" to title, "artist" to artist, "album" to album))
+
+	fun adminDelete(id: String, force: Boolean): Map<String, Any?> = post("/admin/songs/delete", mapOf("id" to id, "force" to force))
+
 	private fun post(path: String, body: Any): Map<String, Any?> =
 		rest.post().uri("$base$path").contentType(MediaType.APPLICATION_JSON).body(body).retrieve().body<Map<String, Any?>>().orEmpty()
 
