@@ -30,6 +30,17 @@ class GonicClient(props: OwlProperties) {
 		return response
 	}
 
+	private val adminCache = java.util.concurrent.ConcurrentHashMap<String, Pair<Boolean, Long>>()
+
+	/** Whether the user is a Gonic admin (asked once per 5 minutes; any error counts as not admin). */
+	fun isAdmin(user: OwlUser): Boolean {
+		val now = System.currentTimeMillis()
+		adminCache[user.username]?.let { (admin, at) -> if (now - at < 300_000) return admin }
+		val admin = runCatching { call(user, "getUser", mapOf("username" to user.username)).user?.adminRole == true }.getOrDefault(false)
+		adminCache[user.username] = admin to now
+		return admin
+	}
+
 	/** Full Gonic URL for binary endpoints (stream, cover art), fetched by MediaController. */
 	fun uri(user: OwlUser, method: String, params: Map<String, Any?> = emptyMap()): URI {
 		val salt = ByteArray(8).also(random::nextBytes).toHex()

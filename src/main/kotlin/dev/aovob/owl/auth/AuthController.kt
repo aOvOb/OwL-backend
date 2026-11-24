@@ -26,7 +26,8 @@ data class LoginRequest(
 	@field:NotBlank @field:Size(max = 256) val password: String,
 )
 
-data class Me(val username: String)
+/** admin: a Gonic admin, who may also clear whole download lists. */
+data class Me(val username: String, val admin: Boolean = false)
 
 /** Login with the Gonic account: the password is checked by Gonic itself (ping). */
 @RestController
@@ -59,7 +60,7 @@ class AuthController(
 		val maxAge = Duration.ofDays(props.sessionDays)
 		return ResponseEntity.ok()
 			.header(HttpHeaders.SET_COOKIE, cookie(codec.encode(user, Instant.now().plus(maxAge)), maxAge).toString())
-			.body(Me(user.username))
+			.body(Me(user.username, gonic.isAdmin(user)))
 	}
 
 	@PostMapping("/auth/logout")
@@ -67,7 +68,7 @@ class AuthController(
 		ResponseEntity.noContent().header(HttpHeaders.SET_COOKIE, cookie("", Duration.ZERO).toString()).build()
 
 	@GetMapping("/me")
-	fun me(@AuthenticationPrincipal user: OwlUser) = Me(user.username)
+	fun me(@AuthenticationPrincipal user: OwlUser) = Me(user.username, gonic.isAdmin(user))
 
 	private fun cookie(value: String, maxAge: Duration) = ResponseCookie.from(SESSION_COOKIE, value)
 		.httpOnly(true)

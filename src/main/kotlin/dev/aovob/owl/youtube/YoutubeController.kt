@@ -1,6 +1,9 @@
 package dev.aovob.owl.youtube
 
+import dev.aovob.owl.auth.OwlUser
+import dev.aovob.owl.gonic.GonicClient
 import jakarta.validation.Valid
+import org.springframework.security.core.annotation.AuthenticationPrincipal
 import jakarta.validation.constraints.Pattern
 import jakarta.validation.constraints.Size
 import org.springframework.http.HttpStatus
@@ -42,7 +45,7 @@ data class VideoIds(val videoIds: List<@Pattern(regexp = "^[A-Za-z0-9_-]{11}$") 
  */
 @RestController
 @RequestMapping("/api")
-class YoutubeController(private val charts: ChartsClient, private val yubal: YubalClient) {
+class YoutubeController(private val charts: ChartsClient, private val yubal: YubalClient, private val gonic: GonicClient) {
 
 	@GetMapping("/yt/search")
 	fun search(@RequestParam q: String): List<Map<String, Any?>> =
@@ -78,9 +81,16 @@ class YoutubeController(private val charts: ChartsClient, private val yubal: Yub
 	@PostMapping("/downloads/retry")
 	fun retry(@Valid @RequestBody body: VideoIds): Map<String, Any?> = charts.retry(body.videoIds)
 
-	/** Remove songs from the queue / failed list. */
+	/**
+	 * Remove songs from the queue / failed list. The queue is shared by every account, so removing
+	 * more than one song at once (clearing a list) is for admins only.
+	 */
 	@PostMapping("/downloads/drop")
-	fun drop(@Valid @RequestBody body: VideoIds): Map<String, Any?> = charts.drop(body.videoIds.orEmpty())
+	fun drop(@AuthenticationPrincipal user: OwlUser, @Valid @RequestBody body: VideoIds): Map<String, Any?> {
+		val ids = body.videoIds.orEmpty()
+		if (ids.size > 1 && !gonic.isAdmin(user)) throw ResponseStatusException(HttpStatus.FORBIDDEN, "관리자 계정만 목록을 한 번에 비울 수 있어요")
+		return charts.drop(ids)
+	}
 
 	/** Recently downloaded songs (suggestions when adding to a playlist). */
 	@GetMapping("/songs/recent")

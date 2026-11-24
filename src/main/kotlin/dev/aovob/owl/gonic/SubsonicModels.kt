@@ -22,7 +22,11 @@ data class SubsonicResponse(
 	val searchResult3: SearchResult? = null,
 	val randomSongs: SongList? = null,
 	val song: Song? = null,
+	val user: SubsonicUser? = null,
 )
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class SubsonicUser(val username: String? = null, val adminRole: Boolean = false)
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class SubsonicError(val code: Int = 0, val message: String = "")
