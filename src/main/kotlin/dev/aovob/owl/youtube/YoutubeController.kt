@@ -48,8 +48,8 @@ data class VideoIds(val videoIds: List<@Pattern(regexp = "^[A-Za-z0-9_-]{11}$") 
 class YoutubeController(private val charts: ChartsClient, private val yubal: YubalClient, private val gonic: GonicClient) {
 
 	@GetMapping("/yt/search")
-	fun search(@RequestParam q: String): List<Map<String, Any?>> =
-		if (q.isBlank()) emptyList() else charts.search(q).map(::withDownloading)
+	fun search(@RequestParam q: String, @RequestParam(defaultValue = "0") page: Int): List<Map<String, Any?>> =
+		if (q.isBlank()) emptyList() else charts.search(q, page.coerceIn(0, 10)).map(::withDownloading)
 
 	@GetMapping("/charts")
 	fun charts(@RequestParam(required = false) key: String?, @RequestParam(required = false) top: Int?): List<Map<String, Any?>> =
