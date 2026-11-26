@@ -2,6 +2,9 @@
 
 버전은 [Semantic Versioning](https://semver.org/lang/ko/)을 따릅니다. 1.0 전까지는 기능 추가에 MINOR, 수정에 PATCH를 올립니다.
 
+## 0.15.0 (2026-11-26)
+- 서버 사용량 기록 API(`/api/admin/status/history?hours=N`): CPU 사용률, 메모리 사용량을 최대 240개 점으로(최대 7일). 관리자 계정만
+
 ## 0.14.0 (2026-11-26)
 - 서버 상태 API(`/api/admin/status`): 서버가 1분마다 쓰는 상태(컨테이너, 부하, 메모리, 디스크, 백업, 요금)와 다운로드 대기열 요약, 백엔드 버전. 관리자 계정만
 
