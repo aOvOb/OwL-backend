@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "dev.aovob"
-version = "0.13.1"
+version = "0.14.0"
 description = "OwL music backend"
 
 java {
