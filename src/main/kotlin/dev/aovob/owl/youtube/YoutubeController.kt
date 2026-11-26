@@ -49,7 +49,7 @@ class YoutubeController(private val charts: ChartsClient, private val yubal: Yub
 
 	@GetMapping("/yt/search")
 	fun search(@RequestParam q: String, @RequestParam(defaultValue = "0") page: Int): List<Map<String, Any?>> =
-		if (q.isBlank()) emptyList() else charts.search(q, page.coerceIn(0, 10)).map(::withDownloading)
+		if (q.isBlank()) emptyList() else charts.search(q, page.coerceAtLeast(0)).map(::withDownloading)
 
 	@GetMapping("/charts")
 	fun charts(@RequestParam(required = false) key: String?, @RequestParam(required = false) top: Int?): List<Map<String, Any?>> =

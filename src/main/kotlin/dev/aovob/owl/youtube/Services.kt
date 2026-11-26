@@ -60,7 +60,7 @@ class ChartsClient(props: OwlProperties) {
 	private val base = props.searchUrl.trimEnd('/')
 	private val rest = internalRestClient()
 
-	/** page N returns the first N+1 pages of songs; the app keeps the ones it has not shown yet. */
+	/** page N returns the next page of songs; the app keeps the ones it has not shown yet. */
 	fun search(q: String, page: Int = 0): List<Map<String, Any?>> {
 		val uri = UriComponentsBuilder.fromUriString("$base/search").queryParam("q", q.take(200)).queryParam("page", page)
 			.encode().build().toUri()
