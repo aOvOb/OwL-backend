@@ -1,5 +1,6 @@
 package dev.aovob.owl.config
 
+import dev.aovob.owl.activity.ActivityLog
 import dev.aovob.owl.auth.SessionCodec
 import dev.aovob.owl.auth.SessionFilter
 import org.springframework.context.annotation.Bean
@@ -20,7 +21,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 class SecurityConfig {
 	@Bean
-	fun securityFilterChain(http: HttpSecurity, codec: SessionCodec): SecurityFilterChain {
+	fun securityFilterChain(http: HttpSecurity, codec: SessionCodec, activity: ActivityLog): SecurityFilterChain {
 		http
 			.csrf { it.disable() }
 			.httpBasic { it.disable() }
@@ -37,7 +38,7 @@ class SecurityConfig {
 				headers.contentTypeOptions { }
 				headers.frameOptions { it.deny() }
 			}
-			.addFilterBefore(SessionFilter(codec), UsernamePasswordAuthenticationFilter::class.java)
+			.addFilterBefore(SessionFilter(codec, activity), UsernamePasswordAuthenticationFilter::class.java)
 		return http.build()
 	}
 

@@ -1,5 +1,6 @@
 package dev.aovob.owl.auth
 
+import dev.aovob.owl.activity.ActivityLog
 import dev.aovob.owl.config.OwlProperties
 import dev.aovob.owl.gonic.GonicClient
 import dev.aovob.owl.gonic.GonicException
@@ -36,6 +37,7 @@ class AuthController(
 	private val gonic: GonicClient,
 	private val codec: SessionCodec,
 	private val props: OwlProperties,
+	private val activity: ActivityLog,
 ) {
 	private val limiter = LoginLimiter()
 
@@ -57,6 +59,7 @@ class AuthController(
 			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(mapOf("error" to "아이디 또는 비밀번호가 맞지 않습니다."))
 		}
 		limiter.clear(ip)
+		activity.login(user.username)
 		val maxAge = Duration.ofDays(props.sessionDays)
 		return ResponseEntity.ok()
 			.header(HttpHeaders.SET_COOKIE, cookie(codec.encode(user, Instant.now().plus(maxAge)), maxAge).toString())

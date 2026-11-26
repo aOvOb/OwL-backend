@@ -1,5 +1,6 @@
 package dev.aovob.owl.media
 
+import dev.aovob.owl.activity.ActivityLog
 import dev.aovob.owl.auth.OwlUser
 import dev.aovob.owl.gonic.GonicClient
 import jakarta.servlet.http.HttpServletRequest
@@ -24,13 +25,17 @@ import java.time.Duration
  */
 @RestController
 @RequestMapping("/api")
-class MediaController(private val gonic: GonicClient) {
+class MediaController(private val gonic: GonicClient, private val activity: ActivityLog) {
 	private val log = LoggerFactory.getLogger(javaClass)
 	private val http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build()
 
 	@GetMapping("/stream/{id}")
-	fun stream(@AuthenticationPrincipal user: OwlUser, @PathVariable id: String, request: HttpServletRequest, response: HttpServletResponse) =
+	fun stream(@AuthenticationPrincipal user: OwlUser, @PathVariable id: String, request: HttpServletRequest, response: HttpServletResponse) {
+		// The player asks for "bytes=0-" (Safari first "bytes=0-1") when a song starts; saving a song for
+		// offline fetches it whole with no Range, and seeking asks from later offsets: neither is a play.
+		if (request.getHeader("Range")?.startsWith("bytes=0-") == true) activity.played(user, id)
 		relay(gonic.uri(user, "stream", mapOf("id" to id, "format" to "raw")), request, response, cache = "private, no-transform")
+	}
 
 	@GetMapping("/cover/{id}")
 	fun cover(

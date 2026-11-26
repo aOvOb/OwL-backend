@@ -1,5 +1,6 @@
 package dev.aovob.owl.youtube
 
+import dev.aovob.owl.activity.ActivityLog
 import dev.aovob.owl.auth.OwlUser
 import dev.aovob.owl.gonic.GonicClient
 import jakarta.validation.Valid
@@ -45,7 +46,12 @@ data class VideoIds(val videoIds: List<@Pattern(regexp = "^[A-Za-z0-9_-]{11}$") 
  */
 @RestController
 @RequestMapping("/api")
-class YoutubeController(private val charts: ChartsClient, private val yubal: YubalClient, private val gonic: GonicClient) {
+class YoutubeController(
+	private val charts: ChartsClient,
+	private val yubal: YubalClient,
+	private val gonic: GonicClient,
+	private val activity: ActivityLog,
+) {
 
 	@GetMapping("/yt/search")
 	fun search(@RequestParam q: String, @RequestParam(defaultValue = "0") page: Int): List<Map<String, Any?>> =
@@ -60,15 +66,20 @@ class YoutubeController(private val charts: ChartsClient, private val yubal: Yub
 		}
 
 	@PostMapping("/yt/download")
-	fun download(@Valid @RequestBody body: DownloadRequest): Map<String, Any?> = when {
-		body.url != null -> charts.wantUrl(body.url)
+	fun download(@AuthenticationPrincipal user: OwlUser, @Valid @RequestBody body: DownloadRequest): Map<String, Any?> = when {
+		body.url != null -> charts.wantUrl(body.url).also { activity.downloaded(user.username, 1, body.url, null) }
 		body.videoId != null -> mapOf("queued" to charts.want(listOf(body.toSong()), "manual"))
+			.also { activity.downloaded(user.username, 1, body.title, body.artist) }
 		else -> throw ResponseStatusException(HttpStatus.BAD_REQUEST, "videoId 또는 url이 필요합니다")
 	}
 
 	@PostMapping("/yt/download/bulk")
-	fun downloadBulk(@Valid @RequestBody body: BulkDownloadRequest): Map<String, Any?> =
-		mapOf("queued" to charts.want(body.items.filter { it.videoId != null }.map { it.toMap() }, "manual"))
+	fun downloadBulk(@AuthenticationPrincipal user: OwlUser, @Valid @RequestBody body: BulkDownloadRequest): Map<String, Any?> {
+		val items = body.items.filter { it.videoId != null }
+		val first = items.firstOrNull()
+		return mapOf("queued" to charts.want(items.map { it.toMap() }, "manual"))
+			.also { activity.downloaded(user.username, items.size, first?.title, first?.artist) }
+	}
 
 	@GetMapping("/yt/jobs")
 	fun jobs(): Map<String, Any?> = yubal.jobs()
